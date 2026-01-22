@@ -1,0 +1,9 @@
+#+TITLE: 2026/01/22 CS-Lab Special Topcis: Duckdb at Scale
+
+Presentation on tools of duckdb
+
+** Things I Learned
+
+- How to insert duckdb tables in latex via [[https://github.com/afermg/2026_01_22_SpecialTopics_duckdb/blob/master/slides.org#L13-L35][\newunicodechar]]
+- How to lint org-mode code blocks using [[https://github.com/afermg/2026_01_22_SpecialTopics_duckdb/blob/master/config.el#L26-L28][minted]]
+- How to convert a Duckdb table into a [[https://github.com/afermg/2026_01_22_SpecialTopics_duckdb/blob/master/slides.org#L332-L346][nested json]]
