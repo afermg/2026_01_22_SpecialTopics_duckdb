@@ -33,7 +33,6 @@
 #+LATEX_HEADER: \newunicodechar{…}{{\monoellipsis}} % One-character ellipsis unicode U+2026
 #+LATEX_HEADER: \newunicodechar{ }{\ } % Non-breaking space, unicode c2a0
 #+LATEX_HEADER: \newunicodechar{·}{\textperiodcentered} % Center dot unicode U+00B7
-# #+LATEX_HEADER: \usepackage[scaled=1.0]{DejaVuSansMono}
 #+LATEX_HEADER: \usepackage[scaled=1.0]{inconsolata}
 #+LATEX_HEADER: \setbeamercovered{transparent=0.1}
 #+latex_header: \setminted{style=solarized-light,frame=leftline}
