@@ -74,7 +74,7 @@ It can be 100-1000 times faster than SQLite/Postgres.
 ** The Open Data portal for the Massachusets Bay Transport Authority 
 #+ATTR_LATEX: :width 0.95 \linewidth
 [[./figs/mbta_opendata_screenshot.png]]
-** First we adjust the outputs for slide-like sizes
+** First we adjust the outputs to be slide-friendly
 :PROPERTIES:
 :BEAMER_opt: shrink=15
 :END:
@@ -83,10 +83,8 @@ It can be 100-1000 times faster than SQLite/Postgres.
   INSTALL httpfs; 
   LOAD httpfs;
   
-  -- Slides-friendly visualisation
   .maxrows 10
   .maxwidth 20
-  .mode box
 
   SET VARIABLE line_data = 'https://hub.arcgis.com/api/v3/datasets/
   a2d15ddd86b34867a31cd4b8e0a83932_0/
@@ -165,11 +163,13 @@ SELECT #1,#2 FROM (DESCRIBE monthly_ridership);
 └───────────────┘
 #+end_example
 
-** What is the ridership by route or line?
+** Which route or line is the most frequented?
 :PROPERTIES:
 :BEAMER_opt: shrink=15
 :END:
-We will thus group by route or line to see which routes move around the 
+
+\pause
+Buses (as a whole) move the most people amongst underground trains the Red Line is the winner
 #+begin_src sql :session duckdb :db test.duckdb :exports both :eval no-export
 SELECT route_or_line, CAST(MEAN(total_monthly_weekday_ridership) AS INTEGER)
 AS mean_weekly_ridership FROM monthly_ridership GROUP BY route_or_line
@@ -240,6 +240,8 @@ SELECT #1,#2 FROM (DESCRIBE gated_entries);
 :BEAMER_opt: shrink=12
 :END:
 \pause
+- Q1: Why Harvard and not another downtown station?
+- Q2: Why Magoun/East Somerville if the green line is relatively popular?
 #+begin_src sql :session duckdb :db test.duckdb :exports both :eval no-export
 SELECT station_name,route_or_line,CAST(SUM(gated_entries) AS INT)
 AS gated_entries FROM gated_entries
@@ -271,15 +273,20 @@ ORDER BY gated_entries DESC
 └─────────────────────────────────────────────────┘
 #+end_example
 
-** The one-two: Group and calculate
+** Duckdb makes the data wrangling fast and straightforward
+In a few lines you can answer very explicit questions about datasets hosted anywhere (both public and private.)
+
+In general, all this data wrangling can be summarised in a small set of steps.
+
+** The skeleton of any analysis: Group, change, save.
 Most data processing can be reduced to:
 1. Group relevant categories
-- Treatment vs controls
-- Treatments vs each other
+   - Treatment vs controls
+   - Treatments vs each other
 2. Math/Logical operation on groups
-- Basic operations (e.g., $+-*/$)
-- Vector operations (e.g., cosine similarity)
-- Logical operations (e.g., if-else)
+   - Basic operations (e.g., $+-*/$)
+   - Vector operations (e.g., cosine similarity)
+   - Logical operations (e.g., if-else)
    - A combination of the above
 3. Save into a new dataset for further processing/viz
    
@@ -366,9 +373,10 @@ At the cost basically all others.
 #+end_example
 
 ** Using multiple tables and schemas can help 
- But it is untracktable when the database size exceeds 10s of GBs and must be loaded into memory all at once for queries.
+ But it is untracktable when the database size exceeds 10s of GBs (compressed) and must be loaded into memory all at once for queries.
+ 
 ** Problem: Massive hierarchical datasets
-There is no clear path: One big database vs a myriad of files.
+There is no clear correct solution: One big database vs a myriad of files.
 
 ** Potential solution: Parquet hive partitioning
 These prioritise keys that optimise the most common queries.
@@ -380,7 +388,7 @@ These prioritise keys that optimise the most common queries.
 :PROPERTIES:
 :BEAMER_opt: shrink=10
 :END:
-Single-object (e.g., cell, nuclei) time series data.
+In my GSK project I produce profiles of single-object (e.g., cell, nuclei) time series.
 
 #+begin_src bash :session test :results verbatim :wrap example :exports both :eval no-export
   DATA_DIR="/datastore/alan/gsk/aliby_output/ELN201687/
@@ -453,7 +461,7 @@ The full table shows a "tidy"-like structure for morphological features. In real
 :PROPERTIES:
 :BEAMER_opt: shrink=30
 :END:
-Duckdb will only load the file(s) that are relevant to our query, saving time and memory.
+Duckdb will only load the file(s) and column(s) relevant to our query, saving cycles, time memory.
 #+begin_src sql :eval no-export :session duckdb :wrap example :results verbatim :exports both 
   SET VARIABLE hive = '/datastore/alan/gsk/aliby_output/ELN201687/
   H00DJKJread1BF48hrs_20230926_095825hive_profiles_tracked/*/*/*.parquet';
@@ -479,9 +487,12 @@ Duckdb will only load the file(s) that are relevant to our query, saving time an
 :PROPERTIES:
 :BEAMER_opt: shrink=30
 :END:
+We also do it fromm bash
+
 Site B01_001 (1 file, directly read): 56MB of peak usage. 
 
 #+begin_src bash :session test :results verbatim :wrap example :exports both :eval no-export
+  HIVE="${DATA_DIR}/\*\*/\*.parquet"
   command time --format='%e seconds; %M max memory (KB)' duckdb -c "
   SELECT branch,site,metric,value FROM (
   FROM read_parquet('${DATA_DIR}/site=B01_001/object=cell/data_0.parquet')
@@ -646,7 +657,7 @@ From within Python: PyPI's =duckdb= package.
 - Already on CS-Lab Nix servers
 - MacOS: =brew= or Download from =duckdb.org=
 - Windows: =duckdb.org=
-*** I want a UI!
+*** Notebook-like user interfaces
 - The CLI comes with one: =duckdb --ui=
 - =Marimo= supports =duckdb= out of the box!
 - Jupyter notebooks running =duckdb=
