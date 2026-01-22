@@ -2,7 +2,6 @@
 #+TITLE: Special topics: DuckDB at scale
 #+date: 2026/01/22
 #+author: Alán F. Muñoz
-# #+OPTIONS: num:t  H:2 \n:t
 #+OPTIONS: ^:nil num:t  H:2 \n:t
 #+LaTeX_CLASS: beamer
 #+BEAMER_THEME: moloch
@@ -10,18 +9,43 @@
 #+COLUMNS: %45ITEM %10BEAMER_env(Env) %10BEAMER_act(Act) %4BEAMER_col(Col) %8BEAMER_opt(Opt)
 #+COLUMNS: %20ITEM %13BEAMER_env(Env) %6BEAMER_envargs(Args) %4BEAMER_col(Col) %7BEAMER_extra(Extra)
 # #+LATEX_HEADER: \institute{Carpenter-Singh Lab, Broad Institute of MIT and Harvard}
-#+LATEX_HEADER: \usepackage{fancyhdr}
-#+LATEX_HEADER: \setbeamercovered{transparent=25}
-# #+LATEX_HEADER: \setmonofont{Inconsolata}
+# #+LATEX_HEADER: \usepackage{fancyhdr}
+#+LATEX_HEADER: \usepackage[T1]{fontenc}
+#+LATEX_HEADER: \usepackage[utf8]{inputenc}
+% 
+#+LATEX_HEADER: \usepackage{pmboxdraw}
+#+LATEX_HEADER: \usepackage{newunicodechar}
+#+LATEX_HEADER: \newunicodechar{└}{\textSFii}
+#+LATEX_HEADER: \newunicodechar{├}{\textSFviii}
+#+LATEX_HEADER: \newunicodechar{─}{\textSFx}
+#+LATEX_HEADER: \newunicodechar{┐}{\textSFiii}
+#+LATEX_HEADER: \newunicodechar{└}{\textSFii}
+#+LATEX_HEADER: \newunicodechar{┴}{\textSFvii}
+#+LATEX_HEADER: \newunicodechar{┬}{\textSFvi}
+#+LATEX_HEADER: \newunicodechar{├}{\textSFviii}
+#+LATEX_HEADER: \newunicodechar{─}{\textSFx}
+#+LATEX_HEADER: \newunicodechar{│}{\textSFxi}
+#+LATEX_HEADER: \newunicodechar{┼}{\textSFv}
+#+LATEX_HEADER: \newunicodechar{┌}{\textSFi}
+#+LATEX_HEADER: \newunicodechar{┘}{\textSFiv}
+#+LATEX_HEADER: \newunicodechar{┤}{\textSFix}
+#+LATEX_HEADER: \newunicodechar{…}{{\ldots}}
+#+LATEX_HEADER: \newcommand\monoellipsis{\hbox to.5em{\hss.\hss\hss.\hss\hss.\hss}}
+#+LATEX_HEADER: \newunicodechar{…}{{\monoellipsis}} % One-character ellipsis unicode U+2026
+#+LATEX_HEADER: \newunicodechar{ }{\ } % Non-breaking space, unicode c2a0
+#+LATEX_HEADER: \newunicodechar{·}{\textperiodcentered} % Center dot unicode U+00B7
+# #+LATEX_HEADER: \usepackage[scaled=1.0]{DejaVuSansMono}
+#+LATEX_HEADER: \usepackage[scaled=1.0]{inconsolata}
+#+LATEX_HEADER: \setbeamercovered{transparent=100}
 #+latex_header: \setminted{style=solarized-light,frame=leftline}
 #+PROPERTY: :eval no-export
 
 * Introduction
 ** What is Duckdb
-DuckDB is an open source in-process SQL engine that is optimised for analytics queries.
+DuckDB is an open source in-process SQL engine optimised for analytics queries.
 
-- 'In-process' means it's similar to SQLite in that it runs within your application. You don't need to start a separate service such as Postgres to run it.
-- 'Optimised for analytics queries' means that it's designed for operations like joins and aggregations involving large numbers of rows, as opposed to atomic transactions.
+- 'In-process' means it runs within your application. You don't need to start a separate service (e.g., Postgres).
+- 'Optimised for analytics queries' means that it's designed joins and aggregations involving large numbers of rows.
 
 ** In which cases is it useful?
 - Local data exploration
@@ -33,16 +57,16 @@ It can be 100-1000 times faster than SQLite/Postgres.
 ** A core use-case
 1. Read =csv=, =parquet=, =json=.
 2. Clean, join, aggregate, math operations, create new columns
-   
+
 ** Key features
-- Speed
+- Speed ("Ridiculously fast")
 - No dependencies!
 - SQL (+ improvements)
 - Supports all important filetypes (e.g., csv, parquet, sql)
 - User-Defined Functions (UDF) + community extensions
 - LLM-friendly documentation
-  
-** What we use in the (Python) shadows
+
+** Common tools in data science
 | Software | Note                     | Language    |
 |----------+--------------------------+-------------|
 | Pandas   | Popular                  | Py/Cython/C |
@@ -56,14 +80,16 @@ DataFrames were a mistake.
 ** Hot take: Learning polars/pandas/ibis API is not worth it
 All support sql-like.
 
+
 * Case study: The MBTA open data
-** The MBTA (Massachusets Bay Transport Authority) publishes usage data
+** The Open Data portal for the Massachusets Bay Transport Authority 
+#+ATTR_LATEX: :width 0.95 \linewidth
+[[./figs/mbta_opendata_screenshot.png]]
+** First we adjust the outputs for slide-like sizes
 :PROPERTIES:
 :BEAMER_opt: shrink=15
 :END:
-Let's explore it using DuckdDB
-
-#+begin_src sql :session main :db test.duckdb :exports code :results none :eval no-export
+#+begin_src sql :session duckdb :db test.duckdb :exports code :results none :eval no-export
   -- Remote calls
   INSTALL httpfs; 
   LOAD httpfs;
@@ -71,14 +97,14 @@ Let's explore it using DuckdDB
   -- Slides-friendly visualisation
   .maxrows 10
   .maxwidth 20
-  .output ascii
+  .mode box
 
-  -- SET VARIABLE line_data = 'https://hub.arcgis.com/api/v3/datasets /a2d15ddd86b34867a31cd4b8e0a83932_0/ downloads/data?format=csv&spatialRefId=4326&where=1%3D1'
+  SET VARIABLE line_data = 'https://hub.arcgis.com/api/v3/datasets/a2d15ddd86b34867a31cd4b8e0a83932_0/downloads/data?format=csv&spatialRefId=4326&where=1%3D1'
 #+end_src
 
 ** Overview of one of the tables
 :PROPERTIES:
-:header-args:duckdb: :session main :db test.duckdb :exports both
+:header-args:duckdb: :session duckdb :db test.duckdb :exports both
 :EXPORT_FILE_NAME: duckdb-exploration-mbta
 :END:
 
@@ -88,21 +114,20 @@ There are multiple available (tabular) datasets:
 - Gated station entries
 - Passenger surveys
 
-** Ridership table
+** Let's explore the ridership table
 :PROPERTIES:
 :BEAMER_opt: shrink=15
 :END:
-#+begin_src sql :session main :db test.duckdb :exports both :eval no-export
-  CREATE OR REPLACE TABLE monthly_ridership AS (
-  FROM read_csv(getvariable('line_data')));
-  SELECT #1,#2 FROM (DESCRIBE monthly_ridership);
+#+begin_src sql :session duckdb :db test.duckdb :exports both :eval no-export
+CREATE OR REPLACE TABLE monthly_ridership AS (
+FROM read_csv(getvariable('line_data')));
+SELECT #1,#2 FROM (DESCRIBE monthly_ridership);
 #+END_SRC
 
 #+RESULTS:
 #+begin_example
 ┌─────────────────────────────────┬──────────────────────────┐
 │           column_name           │       column_type        │
-│             varchar             │         varchar          │
 ├─────────────────────────────────┼──────────────────────────┤
 │ service_date                    │ TIMESTAMP WITH TIME ZONE │
 │ mode                            │ VARCHAR                  │
@@ -114,20 +139,50 @@ There are multiple available (tabular) datasets:
 │ average_monthly_ridership       │ BIGINT                   │
 │ countofdates                    │ BIGINT                   │
 │ ObjectId                        │ BIGINT                   │
-├─────────────────────────────────┴──────────────────────────┤
-│ 10 rows                                          2 columns │
-└────────────────────────────────────────────────────────────┘
+└─────────────────────────────────┴──────────────────────────┘
 #+end_example
 
-** Grouping using a category
+** List the unique route or lines
+:PROPERTIES:
+:BEAMER_opt: shrink=5
+:END:
+#+begin_src sql :session duckdb :db test.duckdb :exports both :eval no-export
+  FROM monthly_ridership
+  SELECT DISTINCT route_or_line
+  ORDER BY route_or_line
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+┌───────────────┐
+│ route_or_line │
+│    varchar    │
+├───────────────┤
+│ Blue Line     │
+│ Boat-F1       │
+│ Boat-F3       │
+│ Boat-F4       │
+│ Bus           │
+│ Commuter Rail │
+│ Green Line    │
+│ Orange Line   │
+│ Red Line      │
+│ Silver Line   │
+│ The RIDE      │
+├───────────────┤
+│    11 rows    │
+└───────────────┘
+#+end_example
+
+** What is the ridership by route or line?
 :PROPERTIES:
 :BEAMER_opt: shrink=15
 :END:
 We will thus group by route or line to see which routes move around the 
-#+begin_src sql :session main :db test.duckdb :exports both :eval no-export
-  SELECT route_or_line, CAST(MEAN(total_monthly_weekday_ridership) AS INTEGER)
-  AS mean_weekly_ridership FROM monthly_ridership GROUP BY route_or_line
-  ORDER BY mean_weekly_ridership DESC;
+#+begin_src sql :session duckdb :db test.duckdb :exports both :eval no-export
+SELECT route_or_line, CAST(MEAN(total_monthly_weekday_ridership) AS INTEGER)
+AS mean_weekly_ridership FROM monthly_ridership GROUP BY route_or_line
+ORDER BY mean_weekly_ridership DESC;
 #+END_SRC
 
 #+RESULTS:
@@ -157,20 +212,20 @@ We will thus group by route or line to see which routes move around the
 :BEAMER_opt: shrink=5
 :END:
 This other dataset contains per-station information
-#+begin_src sql :session main :db test.duckdb :exports code :eval no-export :results none
-  SET VARIABLE gates_data = 'https://hub.arcgis.com
-  /api/v3/datasets /001c177f07594e7c99f193dde32284c9_0
-  /downloads/data?format=csv&spatialRefId=4326&where=1%3D1';
+#+begin_src sql :session duckdb :db test.duckdb :exports code :eval no-export :results none
+SET VARIABLE gates_data = 'https://hub.arcgis.com
+/api/v3/datasets /001c177f07594e7c99f193dde32284c9_0
+/downloads/data?format=csv&spatialRefId=4326&where=1%3D1';
 #+end_src
 ** Information of specific entrances
 :PROPERTIES:
 :BEAMER_opt: shrink=15
 :END:
 
-#+begin_src sql :session main :db test.duckdb :exports both :eval no-export
-  CREATE OR REPLACE TABLE gated_entries AS (
-  FROM read_csv(getvariable('gates_data')));
-  SELECT #1,#2 FROM (DESCRIBE gated_entries);
+#+begin_src sql :session duckdb :db test.duckdb :exports both :eval no-export
+CREATE OR REPLACE TABLE gated_entries AS (
+FROM read_csv(getvariable('gates_data')));
+SELECT #1,#2 FROM (DESCRIBE gated_entries);
 #+END_SRC
 
 #+RESULTS:
@@ -193,11 +248,12 @@ This other dataset contains per-station information
 :PROPERTIES:
 :BEAMER_opt: shrink=12
 :END:
-#+begin_src sql :session main :db test.duckdb :exports both :eval no-export
-  SELECT station_name,route_or_line,CAST(SUM(gated_entries) AS INT)
-  AS gated_entries FROM gated_entries
-  GROUP BY station_name, route_or_line
-  ORDER BY gated_entries DESC
+\pause
+#+begin_src sql :session duckdb :db test.duckdb :exports both :eval no-export
+SELECT station_name,route_or_line,CAST(SUM(gated_entries) AS INT)
+AS gated_entries FROM gated_entries
+GROUP BY station_name, route_or_line
+ORDER BY gated_entries DESC
 #+END_SRC
 
 #+RESULTS:
@@ -223,16 +279,16 @@ This other dataset contains per-station information
 │ 78 rows (10 shown)                    3 columns │
 └─────────────────────────────────────────────────┘
 #+end_example
-  
+
 ** The one-two: Group and calculate
 All data processing is:
 1. Group relevant groups
-   - Treatment vs controls
-   - Treatments vs each other
+- Treatment vs controls
+- Treatments vs each other
 2. Math/Logical operation on groups
-   - Addition
-   - Cosine similarity
-   - if -> else flow
+- Addition
+- Cosine similarity
+- if -> else flow
 * Tools for large-scale data
 ** What do we consider large-scale?
 - Data larger than an off-the-shelf server
@@ -241,12 +297,12 @@ All data processing is:
 ** Problem: Many different groups and subgroups
 ** Abstraction: Tables vs Trees
 :PROPERTIES:
-:BEAMER_opt: shrink=12
+:BEAMER_opt: shrink=30
 :END:
 
-#+begin_src sql :session main :db test.duckdb :exports both :results verbatim :wrap :eval no-export example 
+#+begin_src sql :session duckdb :db test.duckdb :exports both :results raw :wrap :eval no-export 
   SET VARIABLE plates = 'https://github.com/jump-cellpainting/datasets/
-  raw/refs/heads/main/metadata/plate.csv.gz';
+  raw/refs/heads/duckdb/metadata/plate.csv.gz';
   FROM getvariable(plates) LIMIT 3;
 #+end_src
 
@@ -262,8 +318,11 @@ All data processing is:
 └─────────────────┴─────────────────┴────────────────┴────────────────────┘
 #+end_example
 
-** This can also be expressed in tree
-#+begin_src sql :session main :eval no-export :exports code
+** We can express it as a nested tree
+:PROPERTIES:
+:BEAMER_opt: shrink=30
+:END:
+#+begin_src sql :session duckdb :eval no-export :exports code
   COPY (SELECT json_object(
       Metadata_Source, json_group_array(sub_data)
   ) AS root
@@ -314,32 +373,52 @@ All data processing is:
 :END:
 Single-object (e.g., cell, nuclei) time series data
 
-#+begin_src sh :session duckdb_sh :results verbatim :wrap example :exports both :eval no-export
+#+begin_src bash :session test :results verbatim :wrap example :exports both :eval no-export
   DATA_DIR="/datastore/alan/gsk/aliby_output/ELN201687/H00DJKJread1BF48hrs_20230926_095825hive_profiles_tracked"
 
-   tree --charset=ascii $DATA_DIR | sed -n "2,10p" 
+   tree $DATA_DIR | sed -n "2,10p" 
 #+end_src
 
 #+RESULTS:
 #+begin_example
-|-- site=A01_001
-|   |-- object=cell
-|   |   `-- data_0.parquet
-|   `-- object=nuclei
-|       `-- data_0.parquet
-|-- site=A01_002
-|   |-- object=cell
-|   |   `-- data_0.parquet
-|   `-- object=nuclei
+├── site=A01_001
+│   ├── object=cell
+│   │   └── data_0.parquet
+│   └── object=nuclei
+│       └── data_0.parquet
+├── site=A01_002
+│   ├── object=cell
+│   │   └── data_0.parquet
+│   └── object=nuclei
 #+end_example
 
 ** Hive partitioning
-#+begin_src sql :eval no-export :session main :wrap example :results verbatim  
-  SET VARIABLE hive = '/datastore/alan/gsk/aliby_output/ELN201687/H00DJKJread1BF48hrs_20230926_095825hive_profiles_tracked/*/*/*.parquet';
-  FROM read_parquet(getvariable('hive'), hive_partitioning = true);
+:PROPERTIES:
+:BEAMER_opt: shrink=30
+:END:
+#+begin_src sql :eval no-export :session duckdb :wrap example :results verbatim :exports both 
+  SET VARIABLE hive = '/datastore/alan/gsk/aliby_output/ELN201687/
+  H00DJKJread1BF48hrs_20230926_095825hive_profiles_tracked/*/*/*.parquet';
+  
+  FROM read_parquet(getvariable('hive'), hive_partitioning = true) LIMIT 3;
 #+end_src
+
+#+RESULTS:
+#+begin_example
+┌───────┬───────┬───────────────┬───┬─────────┬─────────┬─────────┐
+│ tile  │ label │    branch     │ … │ site_1  │ object  │  site   │
+│ int64 │ int64 │    varchar    │   │ varchar │ varchar │ varchar │
+├───────┼───────┼───────────────┼───┼─────────┼─────────┼─────────┤
+│     0 │    33 │ 1/max/texture │ … │ fname   │ cell    │ A01_001 │
+│     0 │    33 │ 1/max/texture │ … │ fname   │ cell    │ A01_001 │
+│     0 │    33 │ 1/max/texture │ … │ fname   │ cell    │ A01_001 │
+├───────┴───────┴───────────────┴───┴─────────┴─────────┴─────────┤
+│ 3 rows                                     11 columns (6 shown) │
+└─────────────────────────────────────────────────────────────────┘
+#+end_example
+
 ** Hive partitioning
-#+begin_src sql :eval no-export :session main :wrap example :results verbatim  
+#+begin_src sql :eval no-export :session duckdb :wrap example :results verbatim  
   SELECT #1,#2 FROM (DESCRIBE FROM read_parquet(getvariable('hive'), hive_partitioning = true));
 #+end_src
 
@@ -422,3 +501,5 @@ From within Python: PyPI's =duckdb= package.
 - [[https://www.dbreunig.com/2025/05/03/duckdb-is-the-most-impactful-geospatial-software-in-a-decade.html][DuckDB is Probably the Most Important Geospatial Software of the Last Decade]]
 - [[https://hakibenita.com/sql-for-data-analysis][Practical SQL for Data Analysis]]
 - [[https://duckdb.org/2024/05/03/vector-similarity-search-vss][Vector Similarity Search in DuckDB]]
+- [[https://spectrum.ieee.org/the-rise-of-sql][The Rise of SQL]]
+- [[https://www.scattered-thoughts.net/writing/against-sql/][Against SQL]]
