@@ -1,6 +1,6 @@
 #+TITLE: 2026/01/22 CS-Lab Special Topcis: Duckdb at Scale
 
-Presentation on tools of duckdb
+Presentation on duckb and tools around it useful for large scale data
 
 ** Things I Learned
 
