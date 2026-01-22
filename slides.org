@@ -12,7 +12,6 @@
 # #+LATEX_HEADER: \usepackage{fancyhdr}
 #+LATEX_HEADER: \usepackage[T1]{fontenc}
 #+LATEX_HEADER: \usepackage[utf8]{inputenc}
-% 
 #+LATEX_HEADER: \usepackage{pmboxdraw}
 #+LATEX_HEADER: \usepackage{newunicodechar}
 #+LATEX_HEADER: \newunicodechar{└}{\textSFii}
@@ -38,6 +37,7 @@
 #+LATEX_HEADER: \usepackage[scaled=1.0]{inconsolata}
 #+LATEX_HEADER: \setbeamercovered{transparent=100}
 #+latex_header: \setminted{style=solarized-light,frame=leftline}
+#+LATEX_HEADER: \usepackage{animate}
 #+PROPERTY: :eval no-export
 
 * Introduction
@@ -47,17 +47,6 @@ DuckDB is an open source in-process SQL engine optimised for analytics queries.
 - 'In-process' means it runs within your application. You don't need to start a separate service (e.g., Postgres).
 - 'Optimised for analytics queries' means that it's designed joins and aggregations involving large numbers of rows.
 
-** In which cases is it useful?
-- Local data exploration
-- Large datasets
-- Query remote data without copying
-
-It can be 100-1000 times faster than SQLite/Postgres.
-
-** A core use-case
-1. Read =csv=, =parquet=, =json=.
-2. Clean, join, aggregate, math operations, create new columns
-
 ** Key features
 - Speed ("Ridiculously fast")
 - No dependencies!
@@ -66,20 +55,20 @@ It can be 100-1000 times faster than SQLite/Postgres.
 - User-Defined Functions (UDF) + community extensions
 - LLM-friendly documentation
 
-** Common tools in data science
-| Software | Note                     | Language    |
-|----------+--------------------------+-------------|
-| Pandas   | Popular                  | Py/Cython/C |
-| Polars   | Lazy & Fast              | Rust        |
-| SQLite   | Ubiquituous              | C           |
-| Duckdb   | Lazy, Fast and versatile | C++         |
+** In which cases is it useful?
+- Local data exploration
+- Large datasets
+- Query remote data without copying
 
-** Why a database language if what we use is DataFrames?
-DataFrames were a mistake.
+It can be 100-1000 times faster than SQLite/Postgres.
 
-** Hot take: Learning polars/pandas/ibis API is not worth it
-All support sql-like.
+** The quintessential use-case
+1. Read =csv=, =parquet=, =json=.
+2. Clean, join, aggregate, math operations, create new columns
 
+** Common processing tools in data science
+#+ATTR_LATEX: :width 0.95 \linewidth
+[[./figs/comparison_table.png]]
 
 * Case study: The MBTA open data
 ** The Open Data portal for the Massachusets Bay Transport Authority 
@@ -93,13 +82,15 @@ All support sql-like.
   -- Remote calls
   INSTALL httpfs; 
   LOAD httpfs;
-
+  
   -- Slides-friendly visualisation
   .maxrows 10
   .maxwidth 20
   .mode box
 
-  SET VARIABLE line_data = 'https://hub.arcgis.com/api/v3/datasets/a2d15ddd86b34867a31cd4b8e0a83932_0/downloads/data?format=csv&spatialRefId=4326&where=1%3D1'
+  SET VARIABLE line_data = 'https://hub.arcgis.com/api/v3/datasets/
+  a2d15ddd86b34867a31cd4b8e0a83932_0/
+  downloads/data?format=csv&spatialRefId=4326&where=1%3D1'
 #+end_src
 
 ** Overview of one of the tables
@@ -281,25 +272,34 @@ ORDER BY gated_entries DESC
 #+end_example
 
 ** The one-two: Group and calculate
-All data processing is:
-1. Group relevant groups
+Most data processing can be reduced to:
+1. Group relevant categories
 - Treatment vs controls
 - Treatments vs each other
 2. Math/Logical operation on groups
-- Addition
-- Cosine similarity
-- if -> else flow
+- Basic operations (e.g., $+-*/$)
+- Vector operations (e.g., cosine similarity)
+- Logical operations (e.g., if-else)
+   - A combination of the above
+3. Save into a new dataset for further processing/viz
+   
 * Tools for large-scale data
 ** What do we consider large-scale?
 - Data larger than an off-the-shelf server
 - Processing takes time requires memory/storage considerations
 - Traditionally we would use cloud compute
 ** Problem: Many different groups and subgroups
+Most of our data is highly structured:
+- By Metadata: Source -> Batch -> Plate -> Well -> Site
+- By annotation: Perturbation id, Control vs perturbation
+  
+#+end_example
 ** Abstraction: Tables vs Trees
 :PROPERTIES:
 :BEAMER_opt: shrink=30
 :END:
 
+Relational databases are a battle-proven technology, but are not always optimal for heavily structured data.
 #+begin_src sql :session duckdb :db test.duckdb :exports both :results raw :wrap :eval no-export 
   SET VARIABLE plates = 'https://github.com/jump-cellpainting/datasets/
   raw/refs/heads/duckdb/metadata/plate.csv.gz';
@@ -322,6 +322,8 @@ All data processing is:
 :PROPERTIES:
 :BEAMER_opt: shrink=30
 :END:
+
+The simplest way to transform table to nested I could come up with.
 #+begin_src sql :session duckdb :eval no-export :exports code
   COPY (SELECT json_object(
       Metadata_Source, json_group_array(sub_data)
@@ -337,10 +339,12 @@ All data processing is:
   GROUP BY Metadata_Source) TO 'output.json';
 #+end_src
 
-** The equivalent nested json file
+** The nested tree makes one type of (key-based) access more efficient
 :PROPERTIES:
 :BEAMER_opt: shrink=15
 :END:
+At the cost basically all others.
+
 #+begin_src sh :results verbatim :wrap example :eval no-export :exports both
   jq '.root | walk(if type == "array" then add else . end) |
   with_entries(select(.key == "source_1")) | select(. != {})'
@@ -362,16 +366,22 @@ All data processing is:
     },
 #+end_example
 
-
-** Using multiple tables and schemas helps 
- But it slows down when loading >50GB databases onto memory.
+** Using multiple tables and schemas can help 
+ But it is untracktable when the database size exceeds 10s of GBs and must be loaded into memory all at once for queries.
 ** Problem: Massive hierarchical datasets
-** Solution: Parquet hive partitioning
+There is no clear path: One big database vs a myriad of files.
+
+** Potential solution: Parquet hive partitioning
+These prioritise a subset of keys to optimise the most common queries.
+
+#+ATTR_LATEX: :width 0.5 \linewidth
+[[./figs/hive_partitioning.png]]
+
 ** Hive partitioning structure
 :PROPERTIES:
 :BEAMER_opt: shrink=10
 :END:
-Single-object (e.g., cell, nuclei) time series data
+Single-object (e.g., cell, nuclei) time series data.
 
 #+begin_src bash :session test :results verbatim :wrap example :exports both :eval no-export
   DATA_DIR="/datastore/alan/gsk/aliby_output/ELN201687/H00DJKJread1BF48hrs_20230926_095825hive_profiles_tracked"
@@ -392,33 +402,24 @@ Single-object (e.g., cell, nuclei) time series data
 │   └── object=nuclei
 #+end_example
 
-** Hive partitioning
-:PROPERTIES:
-:BEAMER_opt: shrink=30
-:END:
-#+begin_src sql :eval no-export :session duckdb :wrap example :results verbatim :exports both 
-  SET VARIABLE hive = '/datastore/alan/gsk/aliby_output/ELN201687/
-  H00DJKJread1BF48hrs_20230926_095825hive_profiles_tracked/*/*/*.parquet';
-  
-  FROM read_parquet(getvariable('hive'), hive_partitioning = true) LIMIT 3;
+** The profiles are big enough to become problematic
+The experiment contains 384 wells \cdot 5 sites \cdot 2 objects \cdot 20 time points \approx 77k files with single-cell profiles.
+#+begin_src bash :session test :results verbatim :wrap example :exports both :eval no-export
+  du -sh ${DATA_DIR} | cut -f 1
 #+end_src
 
 #+RESULTS:
 #+begin_example
-┌───────┬───────┬───────────────┬───┬─────────┬─────────┬─────────┐
-│ tile  │ label │    branch     │ … │ site_1  │ object  │  site   │
-│ int64 │ int64 │    varchar    │   │ varchar │ varchar │ varchar │
-├───────┼───────┼───────────────┼───┼─────────┼─────────┼─────────┤
-│     0 │    33 │ 1/max/texture │ … │ fname   │ cell    │ A01_001 │
-│     0 │    33 │ 1/max/texture │ … │ fname   │ cell    │ A01_001 │
-│     0 │    33 │ 1/max/texture │ … │ fname   │ cell    │ A01_001 │
-├───────┴───────┴───────────────┴───┴─────────┴─────────┴─────────┤
-│ 3 rows                                     11 columns (6 shown) │
-└─────────────────────────────────────────────────────────────────┘
+20G
 #+end_example
 
-** Hive partitioning
+** We treat key columns like any other column
+The full table shows a "tidy"-like structure for morphological features. In reality 
 #+begin_src sql :eval no-export :session duckdb :wrap example :results verbatim  
+  SET VARIABLE hive = '/datastore/alan/gsk/aliby_output/
+  ELN201687/H00DJKJread1BF48hrs_20230926_095825hive_profiles_tracked/
+  ,*/*/*.parquet';
+
   SELECT #1,#2 FROM (DESCRIBE FROM read_parquet(getvariable('hive'), hive_partitioning = true));
 #+end_src
 
@@ -444,29 +445,176 @@ Single-object (e.g., cell, nuclei) time series data
 └───────────────────────────┘
 #+end_example
 
+** Hive partitioning
+:PROPERTIES:
+:BEAMER_opt: shrink=30
+:END:
+Duckdb will only load the file(s) that are relevant to our query, saving time and memory.
+#+begin_src sql :eval no-export :session duckdb :wrap example :results verbatim :exports both 
+  SET VARIABLE hive = '/datastore/alan/gsk/aliby_output/ELN201687/
+  H00DJKJread1BF48hrs_20230926_095825hive_profiles_tracked/*/*/*.parquet';
+  SELECT branch,site,metric,value FROM (
+  FROM read_parquet(getvariable('hive'), hive_partitioning = true)
+  WHERE site LIKE 'B0%' AND object='cell' ORDER BY random())
+  USING SAMPLE 3;
+#+end_src
+
+#+RESULTS:
+#+begin_example
+┌──────────────────────┬─────────┬───────────────────────┬─────────────────────┐
+│        branch        │  site   │        metric         │        value        │
+│       varchar        │ varchar │        varchar        │       double        │
+├──────────────────────┼─────────┼───────────────────────┼─────────────────────┤
+│ 1/max/texture        │ B04_001 │ SumAverage_3_02_256   │  119.70689655172414 │
+│ 1/max/radial_zerni…  │ B01_002 │ RadialDistribution_…  │ 0.43083862789046273 │
+│ 0/max/radial_zerni…  │ B04_003 │ RadialDistribution_…  │  0.6837160487262536 │
+└──────────────────────┴─────────┴───────────────────────┴─────────────────────┘
+#+end_example
+
+** Memory profiling experiments: Data selection and shuffling
+:PROPERTIES:
+:BEAMER_opt: shrink=30
+:END:
+Site B01_001 (1 file, directly read): 56MB of peak usage. 
+
+#+begin_src bash :session test :results verbatim :wrap example :exports both :eval no-export
+  command time --format='%e seconds; %M max memory (KB)' duckdb -c "
+  SELECT branch,site,metric,value FROM (
+  FROM read_parquet('${DATA_DIR}/site=B01_001/object=cell/data_0.parquet')
+  WHERE site = 'B01_001' AND object = 'cell'
+  ORDER BY random()) USING SAMPLE 3;"
+#+end_src
+
+#+RESULTS:
+#+begin_example
+┌─────────────────┬─────────┬─────────────┬───────────────────────┐
+│     branch      │  site   │   metric    │         value         │
+│     varchar     │ varchar │   varchar   │        double         │
+├─────────────────┼─────────┼─────────────┼───────────────────────┤
+│ 1/max/zernike   │ B01_001 │ Zernike_6_4 │ 0.0038834561835829843 │
+│ 0/max/sizeshape │ B01_001 │ Center_X    │     693.9240674955595 │
+│ 1/max/sizeshape │ B01_001 │ FormFactor  │    0.7671706171485779 │
+└─────────────────┴─────────┴─────────────┴───────────────────────┘
+0.05 seconds; 56956 max memory (KB)
+#+end_example
+
+** Memory profiling experiments: Data selection and shuffling
+:PROPERTIES:
+:BEAMER_opt: shrink=30
+:END:
+
+Site B01_001 (1 file): 720MB peak usage
+
+#+begin_src bash :session test :results verbatim :wrap example :exports both :eval no-export
+  command time --format='%e seconds; %M max memory (KB)' duckdb -c "
+  SELECT branch,site,metric,value FROM (
+  FROM read_parquet('${HIVE}', hive_partitioning = true)
+  WHERE site = 'B01_001' AND object='cell'
+  ORDER BY random()) USING SAMPLE 3;"
+#+end_src
+
+#+RESULTS:
+#+begin_example
+┌─────────────────┬─────────┬────────────────────┬───────────────────────┐
+│     branch      │  site   │       metric       │         value         │
+│     varchar     │ varchar │      varchar       │        double         │
+├─────────────────┼─────────┼────────────────────┼───────────────────────┤
+│ 1/max/zernike   │ B01_001 │ Zernike_5_3        │  0.018311454640108134 │
+│ 1/max/sizeshape │ B01_001 │ CentralMoment_2_2  │    287848640.24825424 │
+│ 0/max/texture   │ B01_001 │ InfoMeas1_3_00_256 │ -0.008348726106163183 │
+└─────────────────┴─────────┴────────────────────┴───────────────────────┘
+0.44 seconds; 723624 max memory (KB)
+#+end_example
+
+** Memory profiling experiments: Data selection and shuffling
+:PROPERTIES:
+:BEAMER_opt: shrink=30
+:END:
+Site B01_00% (5 files): ~1.7 GB peak memory usage.
+
+#+begin_src bash :session test :results verbatim :wrap example :exports both :eval no-export
+  command time --format='%e seconds; %M max memory (KB)' duckdb -c "
+  SELECT branch,site,metric,value FROM (
+  FROM read_parquet('${HIVE}', hive_partitioning = true)
+  WHERE site LIKE 'B01_00%' AND object='cell'
+  ORDER BY random()) USING SAMPLE 3;"
+#+end_src
+
+#+RESULTS:
+#+begin_example
+┌─────────────────┬─────────┬──────────────────────┬────────────────────┐
+│     branch      │  site   │        metric        │       value        │
+│     varchar     │ varchar │       varchar        │       double       │
+├─────────────────┼─────────┼──────────────────────┼────────────────────┤
+│ 1/max/sizeshape │ B01_001 │ SpatialMoment_2_0    │          4084235.0 │
+│ 0/max/sizeshape │ B01_003 │ NormalizedMoment_2_3 │ 0.2893527115553125 │
+│ 0/max/sizeshape │ B01_005 │ InertiaTensor_1_1    │          38.509375 │
+└─────────────────┴─────────┴──────────────────────┴────────────────────┘
+0.55 seconds; 1711220 max memory (KB)
+#+end_example
+
+** Memory profiling experiments: Data selection and shuffling
+:PROPERTIES:
+:BEAMER_opt: shrink=30
+:END:
+
+Site B0% (45 files): ~14GB peak memory
+#+begin_src bash :session test :results verbatim :wrap example :exports both :eval no-export
+  command time --format='%e seconds; %M max memory (KB)' duckdb -c "
+  SELECT branch,site,metric,value FROM (
+  FROM read_parquet('${HIVE}', hive_partitioning = true)
+  WHERE site LIKE 'B0%' AND object='cell'
+  ORDER BY random()) USING SAMPLE 3;"
+#+end_src
+
+#+RESULTS:
+#+begin_example
+┌─────────────────┬─────────┬──────────────────────┬──────────────────────┐
+│     branch      │  site   │        metric        │        value         │
+│     varchar     │ varchar │       varchar        │        double        │
+├─────────────────┼─────────┼──────────────────────┼──────────────────────┤
+│ 0/max/zernike   │ B01_001 │ Zernike_7_5          │ 0.002459246938190699 │
+│ 1/max/sizeshape │ B07_003 │ SpatialMoment_2_0    │           23596393.0 │
+│ 0/max/sizeshape │ B01_001 │ BoundingBoxMaximum_Y │                642.0 │
+└─────────────────┴─────────┴──────────────────────┴──────────────────────┘
+1.70 seconds; 14132836 max memory (KB)
+#+end_example
+
 ** Disadvantages of Hive partitioning
 *** Advantages
-- Faster and concurrent write
+- Faster, enables concurrent write
   Partitions can be written without
 - Lower memory footprint
   Only relevant partitions are read into memory
 - Faster queries
   Optimisation occurs at the IO level
 *** Disadvantages
-- Many small files may impact the performance of dataset-wide queries.
-- Compression penaty: Compression occurs at the most granular level.
+- Many small files may impact the performance of very small and very large queries.
+- Compression penalty: Compression occurs at the most granular level.
   
 ** Problem: But my vectors! :(
 SQL was invented before vector operations became the pillar of civilization.
-** Solution: Extensions 
-** Problem: A function not in duckdb
-** Solution: User-Defined functions
-
-** Some use-cases
+** Solution: Vector Similarity extension
+#+ATTR_LATEX: :width 0.95 \linewidth
+[[./figs/vector_sim_duckdb_screenshot.png]]
+** Caveat: GPU processing will usually be faster for round-robin comparisons
+[[./figs/pandas_cudf_benchmark.png]]
+** Problem: I need a function to process data, but it's not available in duckdb
+Normally this would entail:
+1. Loading data into PythonLand and doing slow processing
+2. Moving it back to duckdb and resuming data wrangling
+   
+** Solution 1: User-Defined functions
+[[https://duckdb.org/docs/stable/clients/python/function][source]]
+[[./figs/udf_duckdb.png]]
+** Solution 2: Duckdb-friendly multithreading
+[[https://motherduck.com/docs/key-tasks/authenticating-and-connecting-to-motherduck/multithreading-and-parallelism/multithreading-and-parallelism-python/#connections-in-multiple-threads][source]]
+[[./figs/multithreading_duckdb.png]]
+** Some previous use-cases at the CS-Lab
 - Dealing with tens/hundreds of GB of data processing for GSK project
 - =copairs= 10-100x speedup
-- On-browser cosine similarity between Chemical embeddings
-- /Claudetanu/ uses it extensively
+- On-browser cosine similarity between chemical embeddings
+- /Claudetanu/ uses it extensively to structure JUMP metadata
   
 * Conclusions
 ** Duckdb solves multiple problems
@@ -476,13 +624,16 @@ SQL was invented before vector operations became the pillar of civilization.
 - Optimised queries
 - Web requests
 - Vector operations
+  
 ** Rules of the thumb for DuckDB vs GPU
 Prefer matrix operations (ideally over GPUs) when
-- You need pairwise mathematical operations
-- You are already in Python
-  
+- You need pairwise mathematical operations AND
+- You are already in a Python GPU-enabled environment
+
+Otherwise, duckdb is likely the cost and time-efficient approach.
+
 ** The ecosystem is still growing
-- DuckLake (format): Single repository of data stored in its natural format.
+- DuckLake (format): Single repository of data stored in its natural format
 - MotherDuck (startup): Duckdb-based data warehouse in SQL or natural language
   
 ** I'm excited (or not)! How can I try it out?
@@ -493,9 +644,13 @@ From within Python: PyPI's =duckdb= package.
 - Windows: =duckdb.org=
 *** I want a UI!
 - The CLI comes with one: =duckdb --ui=
-- Marimo supports duckdb out of the box!
-- Jupyter notebooks running duckdb
+- =Marimo= supports =duckdb= out of the box!
+- Jupyter notebooks running =duckdb=
   
+** Thanks for your attention
+\center
+\animategraphics[loop,controls,width=0.6\linewidth]{8}{figs/waddle/waddle_}{1}{6}
+
 ** Resources/Blogs
 - [[https://www.robinlinacre.com/recommend_duckdb/][Why Duckdb is my first choice for data processing]]
 - [[https://www.dbreunig.com/2025/05/03/duckdb-is-the-most-impactful-geospatial-software-in-a-decade.html][DuckDB is Probably the Most Important Geospatial Software of the Last Decade]]
@@ -503,3 +658,7 @@ From within Python: PyPI's =duckdb= package.
 - [[https://duckdb.org/2024/05/03/vector-similarity-search-vss][Vector Similarity Search in DuckDB]]
 - [[https://spectrum.ieee.org/the-rise-of-sql][The Rise of SQL]]
 - [[https://www.scattered-thoughts.net/writing/against-sql/][Against SQL]]
+- [[https://duckdb.org/2024/05/03/vector-similarity-search-vss][Vector Similarity Search using DuckDB]]
+  Benchmarks
+- [[https://docs.rapids.ai/api/cudf/stable/cudf_pandas/benchmarks/][cudf-pandas]]
+- [[https://blog.lordpatil.com/posts/pandas-polars-duckdb-performance-comparison/][pandas vs polars vs duckdb]]
