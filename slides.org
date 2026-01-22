@@ -656,13 +656,13 @@ From within Python: PyPI's =duckdb= package.
 \animategraphics[loop,controls,width=0.6\linewidth]{8}{figs/waddle/waddle_}{1}{6}
 
 ** Resources/Blogs
-- [[https://www.robinlinacre.com/recommend_duckdb/][Why Duckdb is my first choice for data processing]]
-- [[https://www.dbreunig.com/2025/05/03/duckdb-is-the-most-impactful-geospatial-software-in-a-decade.html][DuckDB is Probably the Most Important Geospatial Software of the Last Decade]]
-- [[https://hakibenita.com/sql-for-data-analysis][Practical SQL for Data Analysis]]
-- [[https://duckdb.org/2024/05/03/vector-similarity-search-vss][Vector Similarity Search in DuckDB]]
-- [[https://spectrum.ieee.org/the-rise-of-sql][The Rise of SQL]]
-- [[https://www.scattered-thoughts.net/writing/against-sql/][Against SQL]]
-- [[https://duckdb.org/2024/05/03/vector-similarity-search-vss][Vector Similarity Search using DuckDB]]
-  Benchmarks
-- [[https://docs.rapids.ai/api/cudf/stable/cudf_pandas/benchmarks/][cudf-pandas]]
-- [[https://blog.lordpatil.com/posts/pandas-polars-duckdb-performance-comparison/][pandas vs polars vs duckdb]]
+- General
+ - [[https://www.robinlinacre.com/recommend_duckdb/][Why Duckdb is my first choice for data processing]]
+ - [[https://www.dbreunig.com/2025/05/03/duckdb-is-the-most-impactful-geospatial-software-in-a-decade.html][DuckDB is Probably the Most Important Geospatial Software of the Last Decade]]
+ - [[https://hakibenita.com/sql-for-data-analysis][Practical SQL for Data Analysis]]
+ - [[https://duckdb.org/2024/05/03/vector-similarity-search-vss][Vector Similarity Search in DuckDB]]
+ - [[https://spectrum.ieee.org/the-rise-of-sql][The Rise of SQL]]
+ - [[https://www.scattered-thoughts.net/writing/against-sql/][Against SQL]]
+- Benchmarks
+ - [[https://docs.rapids.ai/api/cudf/stable/cudf_pandas/benchmarks/][cudf-pandas]]
+ - [[https://blog.lordpatil.com/posts/pandas-polars-duckdb-performance-comparison/][pandas vs polars vs duckdb]]
