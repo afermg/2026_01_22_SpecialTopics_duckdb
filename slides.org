@@ -35,7 +35,7 @@
 #+LATEX_HEADER: \newunicodechar{·}{\textperiodcentered} % Center dot unicode U+00B7
 # #+LATEX_HEADER: \usepackage[scaled=1.0]{DejaVuSansMono}
 #+LATEX_HEADER: \usepackage[scaled=1.0]{inconsolata}
-#+LATEX_HEADER: \setbeamercovered{transparent=100}
+#+LATEX_HEADER: \setbeamercovered{transparent=0.1}
 #+latex_header: \setminted{style=solarized-light,frame=leftline}
 #+LATEX_HEADER: \usepackage{animate}
 #+PROPERTY: :eval no-export
@@ -235,7 +235,7 @@ SELECT #1,#2 FROM (DESCRIBE gated_entries);
 └───────────────┴──────────────────────────┘
 #+end_example
 
-** What is the station with the most recorded gate entries?
+** Which station has the most recorded gate entries?
 :PROPERTIES:
 :BEAMER_opt: shrink=12
 :END:
@@ -293,7 +293,6 @@ Most of our data is highly structured:
 - By Metadata: Source -> Batch -> Plate -> Well -> Site
 - By annotation: Perturbation id, Control vs perturbation
   
-#+end_example
 ** Abstraction: Tables vs Trees
 :PROPERTIES:
 :BEAMER_opt: shrink=30
@@ -372,9 +371,9 @@ At the cost basically all others.
 There is no clear path: One big database vs a myriad of files.
 
 ** Potential solution: Parquet hive partitioning
-These prioritise a subset of keys to optimise the most common queries.
+These prioritise keys that optimise the most common queries.
 
-#+ATTR_LATEX: :width 0.5 \linewidth
+#+ATTR_LATEX: :width 0.45 \linewidth
 [[./figs/hive_partitioning.png]]
 
 ** Hive partitioning structure
@@ -384,7 +383,8 @@ These prioritise a subset of keys to optimise the most common queries.
 Single-object (e.g., cell, nuclei) time series data.
 
 #+begin_src bash :session test :results verbatim :wrap example :exports both :eval no-export
-  DATA_DIR="/datastore/alan/gsk/aliby_output/ELN201687/H00DJKJread1BF48hrs_20230926_095825hive_profiles_tracked"
+  DATA_DIR="/datastore/alan/gsk/aliby_output/ELN201687/
+  H00DJKJread1BF48hrs_20230926_095825hive_profiles_tracked"
 
    tree $DATA_DIR | sed -n "2,10p" 
 #+end_src
@@ -414,13 +414,17 @@ The experiment contains 384 wells \cdot 5 sites \cdot 2 objects \cdot 20 time po
 #+end_example
 
 ** We treat key columns like any other column
+:PROPERTIES:
+:BEAMER_opt: shrink=15
+:END:
 The full table shows a "tidy"-like structure for morphological features. In reality 
 #+begin_src sql :eval no-export :session duckdb :wrap example :results verbatim  
-  SET VARIABLE hive = '/datastore/alan/gsk/aliby_output/
-  ELN201687/H00DJKJread1BF48hrs_20230926_095825hive_profiles_tracked/
-  ,*/*/*.parquet';
+  SET VARIABLE hive = '/datastore/alan/gsk/aliby_output/ ELN201687/
+  H00DJKJread1BF48hrs_20230926_095825hive_profiles_tracked/
+  */*/*.parquet';
 
-  SELECT #1,#2 FROM (DESCRIBE FROM read_parquet(getvariable('hive'), hive_partitioning = true));
+  SELECT #1,#2 FROM (DESCRIBE FROM
+  read_parquet(getvariable('hive'), hive_partitioning = true));
 #+end_src
 
 #+RESULTS:
